@@ -1,0 +1,429 @@
+% ============================================================
+%  REPORTE — Reconocimiento de Patrones
+%  Universidad Tecnológica de la Mixteca (UTM)
+% ============================================================
+\documentclass[12pt, letterpaper]{article}
+
+% ----- Codificación y lenguaje -----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+
+% ----- Márgenes -----
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+
+% ----- Fuente profesional -----
+\usepackage{lmodern}
+
+% ----- Tablas y gráficos -----
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{colortbl}
+
+% ----- Matemáticas -----
+\usepackage{amsmath}
+
+% ----- Interlineado -----
+\usepackage{setspace}
+\onehalfspacing
+
+% ----- Cabecera / pie -----
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Reconocimiento de Patrones}
+\fancyhead[R]{\small UTM — Instituto de Computación}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ----- Hipervínculos -----
+\usepackage[hidelinks]{hyperref}
+
+% ----- Color para filas alternadas en tablas -----
+\definecolor{rowgray}{gray}{0.93}
+
+% ============================================================
+\begin{document}
+
+% ============================================================
+%  PORTADA
+% ============================================================
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+
+    {\Large \textbf{Universidad Tecnológica de la Mixteca}}\\[0.3cm]
+    {\large Instituto de Computación}\\[0.2cm]
+    {\large Ingeniería en Computación}
+
+    \vspace{1.5cm}
+    \rule{\linewidth}{0.5pt}\\[0.4cm]
+    {\LARGE \textbf{Clasificación de Niveles de Ansiedad y Estrés\\
+    mediante Naive Bayes y Árboles de Decisión}}\\[0.4cm]
+    \rule{\linewidth}{0.5pt}
+
+    \vspace{1.5cm}
+    {\large \textbf{Materia:} Reconocimiento de Patrones}\\[0.6cm]
+
+    \vspace{1cm}
+    {\large \textbf{Estudiante:}}\\[0.3cm]
+    {\large José Ramón Aragón Toledo}
+
+    \vfill
+    {\large Huajuapan de León, Oaxaca \hfill Abril, 2026}
+\end{titlepage}
+
+% ============================================================
+%  ÍNDICE
+% ============================================================
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Introducción}
+% ============================================================
+
+El presente reporte documenta el proceso de clasificación de niveles de estrés
+utilizando el conjunto de datos \textit{StressLevelDataset}, el cual contiene
+1\,100 registros de estudiantes con 20 variables fisiológicas, psicológicas y
+ambientales, y una variable objetivo \texttt{stress\_level} con tres clases:
+\textbf{Bajo (0)}, \textbf{Medio (1)} y \textbf{Alto (2)}.
+
+El objetivo es comparar el desempeño de dos algoritmos de clasificación —
+\textit{Gaussian Naive Bayes} y \textit{Decision Tree Classifier} — bajo dos
+esquemas de características:
+
+\begin{enumerate}
+    \item \textbf{Tarea 1:} Clasificación utilizando las 20 variables disponibles.
+    \item \textbf{Tarea 2:} Clasificación utilizando únicamente las 10 mejores
+          variables según el criterio de \textit{Información Mutua} (MMI).
+\end{enumerate}
+
+Todos los experimentos se ejecutaron con \texttt{Python 3.12} y la biblioteca
+\texttt{scikit-learn 1.8}.
+
+% ============================================================
+\section{Preprocesamiento de Datos}
+% ============================================================
+
+\subsection{Carga y verificación de calidad}
+
+El dataset fue cargado con \texttt{pandas}. La inspección formal arrojó los
+siguientes resultados:
+
+\begin{itemize}
+    \item \textbf{Valores nulos:} 0 en las 21 columnas.
+    \item \textbf{Filas duplicadas:} 0.
+    \item \textbf{Tipos de datos:} todos enteros (\texttt{int64}), sin necesidad
+          de codificación categórica.
+\end{itemize}
+
+\subsection{Distribución de la variable objetivo}
+
+Las tres clases presentan una distribución prácticamente uniforme, lo que
+garantiza que los resultados no estén sesgados por desbalance de clases
+(ver Tabla~\ref{tab:distribucion}).
+
+\begin{table}[H]
+    \centering
+    \caption{Distribución de la variable objetivo \texttt{stress\_level}}
+    \label{tab:distribucion}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Clase} & \textbf{Frecuencia} & \textbf{Porcentaje (\%)} \\
+        \midrule
+        \rowcolor{rowgray} Bajo (0)  & 373 & 33.91 \\
+        Medio (1)                    & 358 & 32.55 \\
+        \rowcolor{rowgray} Alto (2)  & 369 & 33.55 \\
+        \midrule
+        \textbf{Total} & 1\,100 & 100.00 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Escalado y división de datos}
+
+Para normalizar las escalas de las características se aplicó
+\textbf{StandardScaler} de \texttt{scikit-learn}. El escalado se ajustó
+\emph{únicamente} sobre el conjunto de entrenamiento y posteriormente se
+transformaron ambos conjuntos, evitando así la fuga de información
+(\textit{data leakage}).
+
+La división \textbf{Hold-out} se realizó con los siguientes parámetros:
+
+\begin{itemize}
+    \item Proporción: \textbf{70\% entrenamiento / 30\% prueba}.
+    \item \texttt{random\_state = 42} para garantizar replicabilidad.
+    \item \texttt{stratify = y} para mantener la proporción de clases en ambos
+          subconjuntos.
+\end{itemize}
+
+\begin{table}[H]
+    \centering
+    \caption{Tamaños de los conjuntos resultantes}
+    \label{tab:split}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Conjunto} & \textbf{Muestras} & \textbf{Variables} \\
+        \midrule
+        \rowcolor{rowgray} Entrenamiento (\textit{X\_train}) & 770 & 20 \\
+        Prueba (\textit{X\_test})                            & 330 & 20 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% ============================================================
+\section{Tarea 1: Clasificación con Todas las Variables}
+% ============================================================
+
+\subsection{Modelos utilizados}
+
+\begin{itemize}
+    \item \textbf{Gaussian Naive Bayes} (\texttt{GaussianNB}): asume
+          independencia condicional entre características y distribución
+          gaussiana por clase.
+    \item \textbf{Decision Tree Classifier} con \texttt{max\_depth = 6}:
+          límite de profundidad para controlar el sobreajuste
+          (\textit{overfitting}).
+\end{itemize}
+
+\subsection{Resultados}
+
+La Tabla~\ref{tab:tarea1} muestra las métricas globales (ponderadas por clase)
+obtenidas en el conjunto de prueba.
+
+\begin{table}[H]
+    \centering
+    \caption{Métricas — Tarea 1 (20 variables)}
+    \label{tab:tarea1}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Modelo} & \textbf{Accuracy} & \textbf{Precision} &
+        \textbf{Recall} & \textbf{F1-Score} \\
+        \midrule
+        \rowcolor{rowgray}
+        Gaussian Naive Bayes       & 88.18\% & 0.8990 & 0.8818 & 0.8837 \\
+        Decision Tree (depth = 6)  & 88.48\% & 0.8853 & 0.8848 & 0.8849 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Matrices de confusión}
+
+\begin{table}[H]
+    \centering
+    \caption{Matriz de Confusión — Gaussian Naive Bayes (Tarea 1)}
+    \label{tab:cm_gnb_t1}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Real $\backslash$ Predicho} & \textbf{Bajo (0)} &
+        \textbf{Medio (1)} & \textbf{Alto (2)} \\
+        \midrule
+        \rowcolor{rowgray} Bajo (0)  &  94 &  0 & 18 \\
+        Medio (1)                    &   3 & 90 & 14 \\
+        \rowcolor{rowgray} Alto (2)  &   4 &  0 & 107 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Matriz de Confusión — Decision Tree (Tarea 1)}
+    \label{tab:cm_dt_t1}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Real $\backslash$ Predicho} & \textbf{Bajo (0)} &
+        \textbf{Medio (1)} & \textbf{Alto (2)} \\
+        \midrule
+        \rowcolor{rowgray} Bajo (0)  & 98 &  5 &  9 \\
+        Medio (1)                    &  5 & 95 &  7 \\
+        \rowcolor{rowgray} Alto (2)  &  6 &  6 & 99 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% ============================================================
+\section{Tarea 2: Clasificación con Ranking por Información Mutua}
+% ============================================================
+
+\subsection{Selección de características}
+
+La \textbf{Información Mutua} (\textit{Mutual Information}, MMI) cuantifica la
+dependencia estadística entre cada variable independiente y la variable
+objetivo. Se calculó mediante \texttt{mutual\_info\_classif} de
+\texttt{scikit-learn}, ajustándose únicamente sobre el conjunto de
+entrenamiento para evitar sesgo.
+
+El Top~5 del ranking se presenta en la Tabla~\ref{tab:ranking_mmi} y el
+conjunto completo se encuentra en el archivo \texttt{results/ranking\_mmi.csv}.
+
+\begin{table}[H]
+    \centering
+    \caption{Top 5 — Ranking por Información Mutua}
+    \label{tab:ranking_mmi}
+    \begin{tabular}{clc}
+        \toprule
+        \textbf{Posición} & \textbf{Característica} & \textbf{Score MMI} \\
+        \midrule
+        \rowcolor{rowgray} 1 & blood\_pressure               & 0.7576 \\
+        2                    & future\_career\_concerns      & 0.6764 \\
+        \rowcolor{rowgray} 3 & sleep\_quality                & 0.6722 \\
+        4                    & bullying                      & 0.6627 \\
+        \rowcolor{rowgray} 5 & self\_esteem                  & 0.6488 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Para el entrenamiento se utilizaron las \textbf{Top 10} características
+(hasta \texttt{teacher\_student\_relationship}, score = 0.5429),
+reduciendo el espacio de características en un \textbf{50\%}.
+
+\subsection{Resultados con Top-10 MMI}
+
+\begin{table}[H]
+    \centering
+    \caption{Métricas — Tarea 2 (Top-10 MMI)}
+    \label{tab:tarea2}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Modelo} & \textbf{Accuracy} & \textbf{Precision} &
+        \textbf{Recall} & \textbf{F1-Score} \\
+        \midrule
+        \rowcolor{rowgray}
+        Gaussian Naive Bayes       & 87.27\% & 0.8943 & 0.8727 & 0.8752 \\
+        Decision Tree (depth = 6)  & 86.97\% & 0.8697 & 0.8697 & 0.8696 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Comparación Tarea 1 vs.\ Tarea 2}
+
+\begin{table}[H]
+    \centering
+    \caption{Comparación de Accuracy y F1-Score entre ambas tareas}
+    \label{tab:comparacion}
+    \begin{tabular}{lcccc}
+        \toprule
+        \multirow{2}{*}{\textbf{Modelo}} &
+        \multicolumn{2}{c}{\textbf{Accuracy}} &
+        \multicolumn{2}{c}{\textbf{F1-Score (weighted)}} \\
+        \cmidrule(lr){2-3} \cmidrule(lr){4-5}
+        & \textbf{Tarea 1} & \textbf{Tarea 2} &
+          \textbf{Tarea 1} & \textbf{Tarea 2} \\
+        \midrule
+        \rowcolor{rowgray}
+        Gaussian Naive Bayes      & 88.18\% & 87.27\% & 0.8837 & 0.8752 \\
+        Decision Tree (depth = 6) & 88.48\% & 86.97\% & 0.8849 & 0.8696 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% ============================================================
+\section{Análisis y Conclusiones}
+% ============================================================
+
+Los resultados obtenidos permiten establecer las siguientes conclusiones:
+
+\begin{enumerate}
+
+    \item \textbf{Eficiencia del ranking MMI.}
+    La reducción del espacio de características de 20 a 10 variables
+    (50\,\%) provocó una disminución del \textit{Accuracy} de apenas
+    $\approx\!1\%$ en ambos modelos (de 88.18\,\% a 87.27\,\% en
+    Naive Bayes; de 88.48\,\% a 86.97\,\% en el Árbol de Decisión).
+    Este resultado demuestra que el ranking por Información Mutua identifica
+    correctamente las variables más informativas y que las 10 variables
+    descartadas aportaban escasa información discriminante.
+
+    \item \textbf{Recall perfecto de Naive Bayes para la clase ``Alto''.}
+    En ambas tareas, el modelo Gaussian Naive Bayes alcanzó un
+    \textbf{Recall = 0.96} para la clase \textit{Alto (2)}, lo que significa
+    que identificó correctamente el 96\,\% de los casos de estrés alto.
+    Esta propiedad es especialmente valiosa en aplicaciones clínicas o
+    educativas donde un falso negativo (no detectar estrés alto) tiene mayor
+    costo que un falso positivo.
+
+    \item \textbf{Balanceo del árbol de decisión.}
+    El Decision Tree distribuyó los errores de forma más homogénea entre las
+    tres clases, obteniendo métricas de Precision, Recall y F1 más uniformes
+    (diferencia máxima de 0.04 entre clases en Tarea 1), mientras que
+    Naive Bayes concentró sus errores en las clases ``Bajo'' y ``Medio''.
+
+    \item \textbf{Rendimiento general.}
+    Ambos modelos superaron el 86\,\% de \textit{Accuracy} incluso con la
+    mitad de las variables, lo que confirma que el dataset presenta patrones
+    bien definidos y que los algoritmos seleccionados son apropiados para
+    este problema de clasificación multiclase.
+
+\end{enumerate}
+
+% ============================================================
+%  BIBLIOGRAFÍA MÍNIMA
+% ============================================================
+\newpage
+\begin{thebibliography}{9}
+
+\bibitem{mitchell1997}
+    Mitchell, T.~M. (1997).
+    \textit{Machine Learning}.
+    McGraw-Hill.
+
+\bibitem{sklearn}
+    Pedregosa, F. et al. (2011).
+    Scikit-learn: Machine Learning in Python.
+    \textit{Journal of Machine Learning Research}, 12, 2825--2830.
+
+\bibitem{cover2006}
+    Cover, T.~M. \& Thomas, J.~A. (2006).
+    \textit{Elements of Information Theory} (2nd ed.).
+    Wiley-Interscience.
+
+\end{thebibliography}
+
+\end{document}
+
+% ============================================================
+%  RESUMEN EN MARKDOWN (para PowerPoint / Excel)
+%  Copia desde aquí hacia abajo
+% ============================================================
+
+% ## Tarea 1 — Todas las variables (20 features)
+%
+% | Modelo                   | Accuracy | Precision | Recall | F1-Score |
+% |--------------------------|----------|-----------|--------|----------|
+% | Gaussian Naive Bayes     | 88.18 %  | 0.8990    | 0.8818 | 0.8837   |
+% | Decision Tree (depth=6)  | 88.48 %  | 0.8853    | 0.8848 | 0.8849   |
+%
+% ---
+%
+% ## Tarea 2 — Top-10 MMI (10 features)
+%
+% | Modelo                   | Accuracy | Precision | Recall | F1-Score |
+% |--------------------------|----------|-----------|--------|----------|
+% | Gaussian Naive Bayes     | 87.27 %  | 0.8943    | 0.8727 | 0.8752   |
+% | Decision Tree (depth=6)  | 86.97 %  | 0.8697    | 0.8697 | 0.8696   |
+%
+% ---
+%
+% ## Ranking MMI — Top 5
+%
+% | # | Característica            | Score MMI |
+% |---|---------------------------|-----------|
+% | 1 | blood_pressure            | 0.7576    |
+% | 2 | future_career_concerns    | 0.6764    |
+% | 3 | sleep_quality             | 0.6722    |
+% | 4 | bullying                  | 0.6627    |
+% | 5 | self_esteem               | 0.6488    |
+%
+% ---
+%
+% ## Comparación Tarea 1 vs Tarea 2
+%
+% | Modelo                   | T1 Acc   | T2 Acc   | Δ Acc   | T1 F1  | T2 F1  | Δ F1    |
+% |--------------------------|----------|----------|---------|--------|--------|---------|
+% | Gaussian Naive Bayes     | 88.18 %  | 87.27 %  | −0.91 % | 0.8837 | 0.8752 | −0.0085 |
+% | Decision Tree (depth=6)  | 88.48 %  | 86.97 %  | −1.51 % | 0.8849 | 0.8696 | −0.0153 |
